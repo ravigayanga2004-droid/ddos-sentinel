@@ -11,7 +11,7 @@ from ddos_sentinel.analysis.metrics import simulation_metrics
 from ddos_sentinel.core.config import LabConfig
 from ddos_sentinel.core.database import Database
 from ddos_sentinel.core.models import TrafficSample
-from ddos_sentinel.core.safety import SimulationOptions
+from ddos_sentinel.core.safety import ServiceUnavailableError, SimulationOptions
 from ddos_sentinel.lab.service import TemporaryLab
 from ddos_sentinel.lab.simulator import simulate
 from ddos_sentinel.lab.telemetry import summarize
@@ -31,6 +31,7 @@ class Runtime:
 
     async def __aenter__(self) -> "Runtime":
         self.db.retain(self.config.retention_days, self.config.max_telemetry_rows)
+        self.db.put("configuration", {"id": "current", "configuration": self.config.model_dump()})
         await self.lab.__aenter__()
         return self
 
@@ -57,6 +58,13 @@ class Runtime:
                 if sample.simulation_id == simulation_id and sample.timestamp >= now - seconds
             ]
             window = summarize(samples, seconds, self.lab.telemetry.active)
+            window = window.model_copy(
+                update={
+                    "service_available": bool(
+                        self.lab.authorization and self.lab.authorization.active
+                    )
+                }
+            )
             self.last_window = window
             detections = detector.evaluate(window, simulation_id)
             patterns.update(classify(detections))
@@ -68,7 +76,11 @@ class Runtime:
             self.db.put("service_health", {**window.model_dump(), "simulation_id": simulation_id})
             last_observed = now
 
-        record = await simulate(self.lab, options, observe)
+        try:
+            record = await simulate(self.lab, options, observe)
+        except ServiceUnavailableError as exc:
+            observe(exc.simulation_id, max(0.1, time.time() - last_observed))
+            raise
         record["baseline_snapshot"] = baseline.model_dump() if baseline else None
         if record["status"] != "DRY_RUN":
             observe(record["id"], max(0.1, time.time() - last_observed))

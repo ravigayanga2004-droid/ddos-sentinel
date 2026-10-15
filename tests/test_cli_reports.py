@@ -13,6 +13,8 @@ runner = CliRunner()
 
 def test_help_and_init_validate(tmp_path: Path) -> None:
     assert runner.invoke(app, ["--help"]).exit_code == 0
+    version = runner.invoke(app, ["--version"])
+    assert version.exit_code == 0 and version.stdout.strip() == "0.1.0"
     config = tmp_path / "lab.json"
     assert runner.invoke(app, ["init", str(config)]).exit_code == 0
     assert runner.invoke(app, ["init", str(config)]).exit_code != 0

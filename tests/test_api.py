@@ -107,3 +107,30 @@ async def test_mitigation_controls(client: httpx.AsyncClient) -> None:
     assert (await client.get("/api/status")).json()["mitigations"]
     response = await client.post("/api/mitigation/reset", json={"confirmed": True}, headers=headers)
     assert response.json()["disabled"] == 1
+
+
+async def test_invalid_payloads_and_malformed_boundaries(client: httpx.AsyncClient) -> None:
+    headers = await token(client)
+    secret = "PRIVATE_BODY_NOT_TO_ECHO"
+    response = await client.post(
+        "/api/simulations",
+        headers=headers,
+        json={"options": {"scenario": "normal", "body": secret}, "confirmed": True},
+    )
+    assert response.status_code == 422
+    assert secret not in response.text
+    response = await client.post(
+        "/api/mitigation/reset", headers={**headers, "Origin": "http://["}, json={"confirmed": True}
+    )
+    assert response.status_code == 403
+    response = await client.post(
+        "/api/mitigation/reset", headers={"X-CSRF-Token": "bad"}, json={"confirmed": True}
+    )
+    assert response.status_code == 403
+
+    async def large_body():
+        yield b"{" + b" " * 8192
+        yield b"}"
+
+    response = await client.post("/api/mitigation/reset", headers=headers, content=large_body())
+    assert response.status_code == 400

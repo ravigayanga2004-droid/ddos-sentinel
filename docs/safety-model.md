@@ -14,6 +14,8 @@ Every simulation, including a dry run, needs fresh explicit consent. A live lab 
 an in-process ownership capability which is revoked on shutdown. A fabricated or stale
 capability cannot authorize a simulation. This protects against accidental targeting;
 Python code running with the user's privileges can of course change the program.
+If the service task exits during a run, its capability is revoked and the scheduler
+stops before sending further requests, recording a critical service-unavailable finding.
 
 Traffic uses HTTPX with environment proxies disabled, redirects disabled and fixed
 built-in endpoints. Synthetic client identifiers are labels, never spoofed IP addresses.

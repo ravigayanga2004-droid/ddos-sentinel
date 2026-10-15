@@ -9,7 +9,7 @@ import httpx
 
 from ddos_sentinel.core.audit import audit
 from ddos_sentinel.core.models import TrafficSample, new_id
-from ddos_sentinel.core.safety import SimulationOptions
+from ddos_sentinel.core.safety import ServiceUnavailableError, SimulationOptions
 from ddos_sentinel.lab.service import TemporaryLab
 
 Observer = Callable[[str, float], None]
@@ -88,8 +88,13 @@ async def _run(
 
     async def request(client: httpx.AsyncClient, index: int) -> None:
         request_started = time.monotonic()
+        request_id = f"{simulation_id}-{index}"
         path = endpoint_for(options.scenario, index, options.body_size)
-        request_headers = {**headers, "X-Synthetic-Client": f"client-{index % options.clients}"}
+        request_headers = {
+            **headers,
+            "X-Synthetic-Client": f"client-{index % options.clients}",
+            "X-Sentinel-Request": request_id,
+        }
         if churn:
             request_headers["Connection"] = "close"
         try:
@@ -100,20 +105,20 @@ async def _run(
                 content=b"x" * options.body_size if options.body_size else None,
             )
             record["completed"] += 1
-        except httpx.HTTPError as exc:
+        except httpx.HTTPError:
             record["network_errors"] += 1
-            if isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout)):
-                lab.telemetry.add(
-                    TrafficSample(
-                        endpoint=path,
-                        status=0,
-                        latency_ms=(time.monotonic() - request_started) * 1000,
-                        client_id=f"client-{index % options.clients}",
-                        size=options.body_size,
-                        active=0,
-                        simulation_id=simulation_id,
-                    )
+            lab.telemetry.add(
+                TrafficSample(
+                    endpoint=path,
+                    status=0,
+                    latency_ms=(time.monotonic() - request_started) * 1000,
+                    client_id=f"client-{index % options.clients}",
+                    size=options.body_size,
+                    active=0,
+                    simulation_id=simulation_id,
+                    request_id=request_id,
                 )
+            )
 
     try:
         async with httpx.AsyncClient(
@@ -140,6 +145,8 @@ async def _run(
                         elapsed = time.monotonic() - start
                         if elapsed >= options.duration:
                             break
+                        if not lab.authorization.active:
+                            raise ServiceUnavailableError(simulation_id)
                         rate = options.rate
                         if options.scenario == "burst" and elapsed < options.duration / 4:
                             rate = max(1, options.rate // 4)

@@ -107,17 +107,20 @@ class Mitigator:
 
     def _disable(self, action: dict, status: str = "DISABLED") -> None:
         action["status"] = status
-        self.db.put("mitigation_actions", action)
-        if action["mode"] == "block-client":
-            self.db.put("blocked_clients", action)
+        action["end_time"] = action["expires_at"] if status == "EXPIRED" else time.time()
+        with self.db.connection() as connection:
+            self.db.put("mitigation_actions", action, connection=connection)
+            if action["mode"] == "block-client":
+                self.db.put("blocked_clients", action, connection=connection)
+            audit(
+                self.db,
+                "mitigation.disabled",
+                connection=connection,
+                mode=action["mode"],
+                reason=action["reason"],
+                status=status,
+            )
         self.hits.pop(action["id"], None)
-        audit(
-            self.db,
-            "mitigation.disabled",
-            mode=action["mode"],
-            reason=action["reason"],
-            status=status,
-        )
 
     def disable(self, mode: str) -> int:
         actions = [action for action in self.status() if action["mode"] == mode]

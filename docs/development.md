@@ -45,6 +45,9 @@ the browser and both services and deletes its temporary database. Screenshots ar
 optional and ignored by Git when placed under `.sentinel/`.
 
 Build a distributable wheel with `python -m pip wheel . --no-deps --wheel-dir dist`.
+Then run `python scripts/check_package.py dist/ddos_sentinel-0.1.0-py3-none-any.whl`.
+The package check compares archive files with the current source and runs an isolated
+import/service/dashboard/report smoke test without processing editable-install paths.
 Package data includes all dashboard and report templates/assets. Never commit virtual
 environments, generated traffic, databases, logs or secrets. Use focused feature commits
 and real milestone branches; do not manufacture dates or rewrite history.

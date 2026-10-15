@@ -47,6 +47,9 @@ race. Embedded Uvicorn does not replace the parent's signal handlers. Simulation
 are concurrency-bounded, paced by monotonic time, cancelled at the request deadline,
 and awaited. In-flight service work is allowed a bounded drain before telemetry is
 finalized. FastAPI lifespan shuts down running dashboard jobs and the test service.
+Request identifiers correlate service metadata with failed client observations; a
+failed client observation takes precedence over a late service response. The correlation
+index is bounded by the rolling sample capacity. This avoids counting a timeout twice.
 
 SQLite uses short per-operation connections, WAL, a five-second busy timeout, explicit
 transactions for grouped writes and parameterized values. Table/column SQL identifiers
@@ -67,3 +70,7 @@ All browser state changes require CSRF header/cookie checks. Host, client and Or
 checks keep the API on loopback. Controls receive strict Pydantic payloads with unknown
 fields rejected. Static scripts use textContent for user data; templates autoescape.
 No CDN, font provider or external analytics is used.
+
+The lifecycle follows FastAPI's [lifespan context manager](https://fastapi.tiangolo.com/advanced/events/).
+HTTPX's documented [environment controls](https://www.python-httpx.org/environment_variables/)
+are explicitly disabled for traffic generation, and redirects are disabled on the client.

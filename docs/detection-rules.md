@@ -19,6 +19,7 @@ Reference defaults are explicitly labelled when no normal baseline has been lear
 | slow-resource-occupation | slow endpoint majority and p95 x concurrency > max(400, baseline p95 x 6) | HIGH |
 | coordinated-synthetic-clients | >10 labels and RPS > max(15, mean x 2) | MEDIUM |
 | service-degradation | >80% observed request failure | CRITICAL |
+| service-unavailable | owned service task stopped; generation terminates | CRITICAL |
 | repeated-mitigation-responses | >5 throttle/rejection responses per window | MEDIUM |
 
 Latency/error/distribution/churn/coordination/health rules require at least three
