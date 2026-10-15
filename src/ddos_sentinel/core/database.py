@@ -122,12 +122,18 @@ class Database:
         *,
         limit: int = 1000,
         simulation_id: str | None = None,
+        status: str | None = None,
     ) -> list[dict[str, Any]]:
         table = self._table(table)
         if not 1 <= limit <= 100000:
             raise ValueError("invalid row limit")
-        where = " WHERE simulation_id=?" if simulation_id else ""
-        args: tuple[Any, ...] = (simulation_id, limit) if simulation_id else (limit,)
+        clauses, values = [], []
+        for column, value in (("simulation_id", simulation_id), ("status", status)):
+            if value is not None:
+                clauses.append(f"{column}=?")
+                values.append(value)
+        where = " WHERE " + " AND ".join(clauses) if clauses else ""
+        args = (*values, limit)
         with self.connection() as connection:
             rows = connection.execute(
                 f"SELECT data FROM {table}{where} ORDER BY timestamp DESC,id DESC LIMIT ?", args
