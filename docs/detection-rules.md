@@ -41,14 +41,25 @@ recovery. Recovery requires at least three successful observations with no detec
 or mitigation responses in the same owned service; idle time does not prove recovery.
 
 Availability = successful (2xx/3xx) responses / (observed responses + network errors).
-Mitigation response fraction = (429 + 403/413/503 responses) / observed responses;
-controlled 503 errors can overlap with rejection counts, so this is not causal proof
-of mitigation effectiveness. Causal effectiveness is null until a comparable experiment
-is designed. Detection rate = detected non-normal completed scenarios / non-normal
+Mitigation response fraction = (429 + rejected 403/413 + mitigation-generated 503
+responses) / observed responses. Controlled error-endpoint 503s are not rejections.
+This fraction is not causal proof of mitigation effectiveness. Observed mitigation
+effectiveness = 1 - (accepted requests/second after control activation) / (accepted
+requests/second before activation). It is calculated only for a static-rate scenario
+with one in-run control activation, a nonzero prior accepted rate, at least 0.25 seconds
+and three observations on each side, and observed mitigation responses. Otherwise it
+is null. Negative values mean accepted load increased. This is an observational
+measurement, not a causal estimate. Detection rate = detected non-normal completed scenarios / non-normal
 completed scenarios. Scenario false-positive rate = alerted normal completed scenarios /
 normal completed scenarios. Analyst false positives are counted separately. These
 scenario labels are expectations, not validated production attack ground truth.
 
-Unobserved before/after latency and unreached lifecycle milestones are null, never
+Before/after traffic and median latency use adjacent five-second observation windows
+from the same owned service, when retained samples exist. Baseline comparisons use
+the baseline snapshot selected when that simulation started. Unobserved before/after
+latency and unreached lifecycle milestones are null, never
 invented zeros. Process CPU time is measured using Python's process clock; portable
 RSS memory measurement is unavailable without an optional OS-specific dependency.
+
+Confidence scores are heuristic rule labels (0.65 with reference defaults, 0.85 with
+a learned baseline); they are not statistically calibrated attack probabilities.

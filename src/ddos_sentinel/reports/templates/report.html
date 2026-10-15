@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DDoS Sentinel — Incident report</title>
+<style>body{max-width:1000px;margin:48px auto;padding:0 24px;color:#17283b;font:16px/1.6 system-ui}h1,h2{line-height:1.2}h1{border-bottom:4px solid #119e80;padding-bottom:20px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f2f5f8;padding:20px;font-size:12px}li{margin:8px 0}small{color:#52677c}@media print{body{margin:0}pre{font-size:9px}}</style></head>
+<body><small>AUTHORIZED LOCAL LAB / TECHNICAL &amp; EXECUTIVE REPORT</small>
+<h1>DDoS Sentinel</h1><p>Tool version {{ report.version }} · Generated at Unix time {{ report.generated_at }}</p>
+<h2>Executive assessment</h2><p>{{ report.executive_summary.assessment }}</p>
+<p><strong>{{ report.executive_summary.simulations }}</strong> simulations ·
+<strong>{{ report.executive_summary.detections }}</strong> detections ·
+<strong>{{ report.executive_summary.open_incidents }}</strong> open incidents</p>
+<h2>Recommendations</h2><ul>{% for item in report.recommendations %}<li>{{ item }}</li>{% endfor %}</ul>
+<h2>Limitations</h2><ul>{% for item in report.limitations %}<li>{{ item }}</li>{% endfor %}</ul>
+{% for section in ['configuration','baseline','labs','simulations','timeline','detections','incidents','mitigation_actions','evaluation'] %}
+<h2>{{ section.replace('_',' ').title() }}</h2><pre>{{ report[section] | tojson(indent=2) }}</pre>
+{% endfor %}</body></html>

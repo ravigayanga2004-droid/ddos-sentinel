@@ -87,6 +87,8 @@ class BaselineStore:
         ]
         if not samples:
             raise ValueError("the normal simulation has no retained telemetry")
+        if any(sample.mitigation or not 200 <= sample.status < 400 for sample in samples):
+            raise ValueError("baseline requires successful normal traffic without mitigation")
         duration = min(window_seconds, simulation["end_time"] - simulation["start_time"])
         summary = summarize(samples, duration)
         buckets: dict[int, int] = {}

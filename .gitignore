@@ -10,7 +10,7 @@ htmlcov/
 build/
 dist/
 .sentinel/
-reports/
+/reports/
 *.db
 *.db-*
 *.sqlite*

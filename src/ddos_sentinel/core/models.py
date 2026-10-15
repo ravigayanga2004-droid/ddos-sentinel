@@ -27,6 +27,7 @@ class TrafficSample(StrictModel):
     active: int = Field(ge=0)
     simulation_id: str | None = None
     new_connection: bool = False
+    mitigation: bool = False
 
 
 class Window(StrictModel):

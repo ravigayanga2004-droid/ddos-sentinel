@@ -5,6 +5,7 @@ import time
 from typing import Any
 
 from ddos_sentinel.analysis.baseline import BaselineStore
+from ddos_sentinel.analysis.classification import classify
 from ddos_sentinel.analysis.detection import Detector
 from ddos_sentinel.analysis.metrics import simulation_metrics
 from ddos_sentinel.core.config import LabConfig
@@ -42,8 +43,10 @@ class Runtime:
         self.db.retain(self.config.retention_days, self.config.max_telemetry_rows)
 
     async def run(self, options: SimulationOptions) -> dict[str, Any]:
-        detector = Detector(self.baselines.current(), self.config.detection.alert_threshold)
+        baseline = self.baselines.current()
+        detector = Detector(baseline, self.config.detection.alert_threshold)
         last_observed = time.time()
+        patterns: set[str] = set()
 
         def observe(simulation_id: str, seconds: float) -> None:
             nonlocal last_observed
@@ -56,6 +59,7 @@ class Runtime:
             window = summarize(samples, seconds, self.lab.telemetry.active)
             self.last_window = window
             detections = detector.evaluate(window, simulation_id)
+            patterns.update(classify(detections))
             self.incidents.record(detections, window, self.lab.target)
             if not detections and window.throttled == 0 and window.rejected == 0:
                 for incident in self.db.list("incidents"):
@@ -65,6 +69,7 @@ class Runtime:
             last_observed = now
 
         record = await simulate(self.lab, options, observe)
+        record["baseline_snapshot"] = baseline.model_dump() if baseline else None
         if record["status"] != "DRY_RUN":
             observe(record["id"], max(0.1, time.time() - last_observed))
         rows = self.db.list("traffic_samples", limit=100000, simulation_id=record["id"])
@@ -73,8 +78,13 @@ class Runtime:
             for row in rows
         ]
         record["metrics"] = simulation_metrics(
-            record, samples, self.db.list("incidents", simulation_id=record["id"])
+            record,
+            samples,
+            self.db.list("incidents", simulation_id=record["id"]),
+            context_samples=list(self.lab.telemetry.samples),
+            actions=self.db.list("mitigation_actions", limit=100000),
         )
+        record["patterns"] = sorted(patterns)
         self.db.put("simulations", record)
         self.db.retain(self.config.retention_days, self.config.max_telemetry_rows)
         return record
