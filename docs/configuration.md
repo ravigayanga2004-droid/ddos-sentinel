@@ -6,6 +6,8 @@ option **before** the command: `ddossentinel --config lab.json simulate normal -
 Database paths are selected separately with `--database .sentinel/sentinel.db`.
 All paths are relative to the working directory, unless you supply an absolute path.
 No environment files, commands, plugins or scripts are loaded from configuration.
+`--body-size` uses a fixed payload on `/api/test` and cannot be combined with the
+slow-request-pattern or error-spike scenarios, whose controlled endpoints use GET.
 
 | Setting | Default | Validation |
 | --- | --- | --- |

@@ -52,6 +52,14 @@ class Detector:
         rate_threshold = max(
             20, base.average_rps * 2.5, base.peak_rps * 1.5, base.average_rps + 3 * base.rps_stddev
         )
+        rule(
+            "service-unavailable",
+            float(not window.service_available),
+            0,
+            0,
+            "CRITICAL",
+            "The owned service has stopped. Traffic generation was terminated.",
+        )
         self.rate_windows = self.rate_windows + 1 if window.rps > rate_threshold else 0
         rule(
             "request-rate",

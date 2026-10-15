@@ -71,7 +71,9 @@ def build_report(db: Database, config: LabConfig) -> dict[str, Any]:
             "open_incidents": sum(
                 row["status"] not in {"RESOLVED", "FALSE_POSITIVE"} for row in incidents
             ),
-            "assessment": "Review lab anomalies alongside workload changes; findings are uncertain.",
+            "assessment": (
+                "Review lab anomalies alongside workload changes; findings are uncertain."
+            ),
         },
         "configuration": config.model_dump(),
         "labs": db.list("labs", limit=100000),

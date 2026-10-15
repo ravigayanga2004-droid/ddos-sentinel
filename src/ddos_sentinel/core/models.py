@@ -28,6 +28,7 @@ class TrafficSample(StrictModel):
     simulation_id: str | None = None
     new_connection: bool = False
     mitigation: bool = False
+    request_id: str | None = Field(default=None, max_length=40)
 
 
 class Window(StrictModel):
@@ -43,6 +44,7 @@ class Window(StrictModel):
     clients: int = 0
     mean_size: float = 0
     health: float = 1
+    service_available: bool = True
     throttled: int = 0
     rejected: int = 0
     churn: float = 0

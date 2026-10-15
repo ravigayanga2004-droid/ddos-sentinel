@@ -51,6 +51,10 @@ class ServiceMiddleware:
         )
         raw_client = headers.get(b"x-synthetic-client", b"").decode("ascii", errors="ignore")
         client = raw_client if valid and re.fullmatch(r"client-\d{1,3}", raw_client) else "local"
+        raw_request = headers.get(b"x-sentinel-request", b"").decode("ascii", errors="ignore")
+        request_id = (
+            raw_request if valid and re.fullmatch(r"[0-9a-f]{32}-\d{1,5}", raw_request) else None
+        )
         path = scope.get("path", "/")
         endpoint = path if path in ENDPOINTS else "/unknown"
         peer = tuple(scope.get("client") or ())
@@ -124,11 +128,12 @@ class ServiceMiddleware:
                     simulation_id=self.lab.simulation_id if valid else None,
                     new_connection=new_connection,
                     mitigation=mitigated,
+                    request_id=request_id,
                 )
             )
 
 
-def create_test_service(config: LabConfig) -> FastAPI:
+def create_test_service(config: LabConfig, telemetry: Telemetry) -> FastAPI:
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
     @app.get("/")
@@ -136,8 +141,13 @@ def create_test_service(config: LabConfig) -> FastAPI:
         return {"service": "DDoS Sentinel temporary lab"}
 
     @app.get("/health")
-    async def health() -> dict[str, str]:
-        return {"status": "healthy"}
+    async def health() -> dict[str, Any]:
+        return {
+            "status": "healthy",
+            "active_requests": telemetry.active,
+            "completed_requests": telemetry.completed,
+            "rolling": telemetry.window().model_dump(),
+        }
 
     @app.api_route("/api/test", methods=["GET", "POST"])
     async def test_endpoint() -> dict[str, bool]:
@@ -175,7 +185,7 @@ class TemporaryLab:
             self.socket.listen(128)
             self.target = f"http://127.0.0.1:{self.socket.getsockname()[1]}"
             self.authorization = issue_authorization(self.target, self.id)
-            application = ServiceMiddleware(create_test_service(self.config), self)
+            application = ServiceMiddleware(create_test_service(self.config, self.telemetry), self)
             self.server = EmbeddedServer(
                 uvicorn.Config(
                     application,
@@ -190,6 +200,12 @@ class TemporaryLab:
                 )
             )
             self.task = asyncio.create_task(self.server.serve(sockets=[self.socket]))
+
+            def revoke_ownership(completed: asyncio.Task[None]) -> None:
+                if self.authorization:
+                    self.authorization.active = False
+
+            self.task.add_done_callback(revoke_ownership)
             async with asyncio.timeout(5):
                 while not self.server.started:
                     if self.task.done():
@@ -204,6 +220,7 @@ class TemporaryLab:
                         "name": self.config.lab_name,
                         "target": self.target,
                         "status": "RUNNING",
+                        "configuration": self.config.model_dump(),
                     },
                     connection=connection,
                 )
@@ -238,6 +255,7 @@ class TemporaryLab:
                 "name": self.config.lab_name,
                 "target": self.target,
                 "status": "STOPPED",
+                "configuration": self.config.model_dump(),
                 "end_time": time.time(),
             },
         )

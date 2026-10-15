@@ -48,11 +48,22 @@ class Telemetry:
         self.active = 0
         self.completed = 0
         self.dropped = 0
+        self.by_request: dict[str, TrafficSample] = {}
 
     def add(self, sample: TrafficSample) -> None:
+        if sample.request_id and (existing := self.by_request.get(sample.request_id)):
+            if existing.status == 0:
+                return  # A failed client observation takes precedence over a late server response.
+            self.samples.remove(existing)
+            self.completed -= 1
         if len(self.samples) == self.samples.maxlen:
+            oldest = self.samples[0]
+            if oldest.request_id:
+                self.by_request.pop(oldest.request_id, None)
             self.dropped += 1
         self.samples.append(sample)
+        if sample.request_id:
+            self.by_request[sample.request_id] = sample
         self.completed += 1
 
     def window(self, seconds: float = 1, *, now: float | None = None) -> Window:

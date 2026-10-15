@@ -35,6 +35,8 @@ class Database:
         self.path = path
         path.parent.mkdir(parents=True, exist_ok=True)
         with self.connection() as connection:
+            if connection.execute("PRAGMA user_version").fetchone()[0] not in {0, 1}:
+                raise ValueError("unsupported SQLite schema version")
             connection.execute("PRAGMA journal_mode=WAL")
             for table in sorted(TABLES):
                 connection.execute(f"""CREATE TABLE IF NOT EXISTS {table} (

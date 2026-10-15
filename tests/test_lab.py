@@ -110,3 +110,25 @@ def test_telemetry_is_bounded_and_private() -> None:
     assert len(telemetry.samples) == 2
     assert telemetry.dropped == 1
     assert telemetry.window().count == 2
+
+
+def test_failure_observation_wins_and_request_index_is_bounded() -> None:
+    telemetry = Telemetry(capacity=2)
+    observed = TrafficSample(
+        endpoint="/",
+        status=200,
+        latency_ms=1,
+        client_id="client-1",
+        size=0,
+        active=1,
+        request_id="request-1",
+    )
+    telemetry.add(observed)
+    telemetry.add(observed.model_copy(update={"status": 0}))
+    telemetry.add(observed)
+    assert len(telemetry.samples) == telemetry.completed == 1
+    assert telemetry.samples[0].status == 0
+    telemetry.add(observed.model_copy(update={"request_id": "request-2"}))
+    telemetry.add(observed.model_copy(update={"request_id": "request-3"}))
+    assert len(telemetry.by_request) == 2
+    assert "request-1" not in telemetry.by_request

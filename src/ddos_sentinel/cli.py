@@ -28,18 +28,22 @@ app.add_typer(response.incidents, name="incidents")
 app.add_typer(response.mitigation, name="mitigation")
 
 
+def show_version(value: bool) -> bool:
+    if value:
+        typer.echo(__version__)
+        raise typer.Exit()
+    return value
+
+
 @app.callback()
 def configure(
     ctx: typer.Context,
     config: Path | None = typer.Option(None, "--config"),
     database: Path = typer.Option(Path(".sentinel/sentinel.db"), "--database"),
     json_output: bool = typer.Option(False, "--json"),
-    version: bool = typer.Option(False, "--version", is_eager=True),
+    version: bool = typer.Option(False, "--version", is_eager=True, callback=show_version),
 ) -> None:
     """Global options precede the command; JSON data is emitted on stdout."""
-    if version:
-        typer.echo(__version__)
-        raise typer.Exit()
     ctx.obj = Context(load_config(config), database, json_output)
 
 

@@ -39,7 +39,8 @@ function render(data) {
   $("mitigations").replaceChildren(...(data.mitigations.length ? data.mitigations.map(item => node("p", `${item.mode} · expires ${new Date(item.expires_at * 1000).toLocaleTimeString()}`)) : [node("p", "No active mitigations.", "empty")]));
   const timeline = data.timeline;
   const peak = Math.max(1, ...timeline.map(item => item.rps));
-  const points = timeline.length > 1 ? timeline.map((item, i) => `${i * 760 / (timeline.length - 1)},${155 - item.rps / peak * 135}`).join(" ") : "0,155 760,155";
+  const singleY = timeline.length ? 155 - timeline[0].rps / peak * 135 : 155;
+  const points = timeline.length > 1 ? timeline.map((item, i) => `${i * 760 / (timeline.length - 1)},${155 - item.rps / peak * 135}`).join(" ") : `0,${singleY} 760,${singleY}`;
   $("chart").setAttribute("points", points);
   $("chart-max").textContent = `Peak ${format(timeline.length ? peak : 0)} req/s`;
   const rows = data.detections.slice(0, 8).map(item => {

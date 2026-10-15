@@ -97,6 +97,9 @@ def accepted_load_reduction(
     if len(changes) != 1:
         return None
     boundary = changes[0]
+    selected = next(action for action in actions if action["start_time"] == boundary)
+    if min(selected.get("expires_at", end), selected.get("end_time", end)) < end:
+        return None
     before = [sample for sample in samples if sample.timestamp < boundary]
     after = [sample for sample in samples if sample.timestamp >= boundary]
     if min(boundary - start, end - boundary) < 0.25 or min(len(before), len(after)) < 3:

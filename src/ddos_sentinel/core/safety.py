@@ -18,6 +18,12 @@ SCENARIOS = (
 ENDPOINTS = ("/", "/health", "/api/test", "/slow-test", "/error-test")
 
 
+class ServiceUnavailableError(ValueError):
+    def __init__(self, simulation_id: str) -> None:
+        self.simulation_id = simulation_id
+        super().__init__("owned test service stopped; simulation terminated")
+
+
 def validate_target(url: str) -> str:
     """Return a canonical loopback origin; paths, credentials and aliases are forbidden."""
     parsed = urlsplit(url)
@@ -53,6 +59,10 @@ class SimulationOptions(StrictModel):
     def check(self, limits: Limits) -> None:
         if self.scenario not in SCENARIOS:
             raise ValueError(f"scenario must be one of: {', '.join(SCENARIOS)}")
+        if self.body_size and self.scenario in {"slow-request-pattern", "error-spike"}:
+            raise ValueError(
+                "body-size tests cannot be combined with slow or error endpoint scenarios"
+            )
         for value, ceiling, name in (
             (self.duration, limits.max_duration_seconds, "duration"),
             (self.rate, limits.max_requests_per_second, "rate"),
