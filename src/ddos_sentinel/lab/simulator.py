@@ -8,7 +8,7 @@ from typing import Any
 import httpx
 
 from ddos_sentinel.core.audit import audit
-from ddos_sentinel.core.models import new_id
+from ddos_sentinel.core.models import TrafficSample, new_id
 from ddos_sentinel.core.safety import SimulationOptions
 from ddos_sentinel.lab.service import TemporaryLab
 
@@ -87,6 +87,7 @@ async def _run(
     churn = options.scenario == "connection-churn"
 
     async def request(client: httpx.AsyncClient, index: int) -> None:
+        request_started = time.monotonic()
         path = endpoint_for(options.scenario, index, options.body_size)
         request_headers = {**headers, "X-Synthetic-Client": f"client-{index % options.clients}"}
         if churn:
@@ -99,8 +100,20 @@ async def _run(
                 content=b"x" * options.body_size if options.body_size else None,
             )
             record["completed"] += 1
-        except httpx.HTTPError:
+        except httpx.HTTPError as exc:
             record["network_errors"] += 1
+            if isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout)):
+                lab.telemetry.add(
+                    TrafficSample(
+                        endpoint=path,
+                        status=0,
+                        latency_ms=(time.monotonic() - request_started) * 1000,
+                        client_id=f"client-{index % options.clients}",
+                        size=options.body_size,
+                        active=0,
+                        simulation_id=simulation_id,
+                    )
+                )
 
     try:
         async with httpx.AsyncClient(

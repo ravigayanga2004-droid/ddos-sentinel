@@ -1,5 +1,6 @@
 """Expiring local middleware controls; no firewall changes or shell execution."""
 
+import json
 import re
 import time
 from collections import defaultdict, deque
@@ -11,7 +12,6 @@ from ddos_sentinel.core.audit import audit
 from ddos_sentinel.core.config import StrictModel
 from ddos_sentinel.core.database import Database
 from ddos_sentinel.core.safety import ENDPOINTS
-from ddos_sentinel.response.incidents import IncidentManager
 
 Mode = Literal[
     "global-throttle",
@@ -53,14 +53,7 @@ class Mitigator:
         self.hits: dict[str, deque[float]] = defaultdict(deque)
 
     def enable(self, request: MitigationRequest) -> str:
-        # Validate a related incident before persisting any action.
-        if request.incident_id:
-            incident = self.db.get("incidents", request.incident_id)
-            if incident["status"] not in {"OPEN", "ACKNOWLEDGED", "MITIGATING"}:
-                raise ValueError("cannot mitigate a closed incident")
-        active = self.status()
-        if len(active) >= 32:
-            raise ValueError("at most 32 local mitigation actions can be active")
+        self.status()
         now = time.time()
         action = {
             **request.model_dump(),
@@ -69,19 +62,37 @@ class Mitigator:
             "expires_at": now + request.ttl,
         }
         with self.db.connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            count = connection.execute(
+                "SELECT count(*) FROM mitigation_actions WHERE status='ACTIVE'"
+            ).fetchone()[0]
+            if count >= 32:
+                raise ValueError("at most 32 local mitigation actions can be active")
+            if request.incident_id:
+                row = connection.execute(
+                    "SELECT data FROM incidents WHERE id=?", (request.incident_id,)
+                ).fetchone()
+                if row is None:
+                    raise ValueError("incident not found")
+                incident = json.loads(row[0])
+                if incident["status"] not in {"OPEN", "ACKNOWLEDGED", "MITIGATING"}:
+                    raise ValueError("cannot mitigate a closed incident")
+                incident["status"] = "MITIGATING"
+                if incident.get("mitigation_time") is None:
+                    incident["mitigation_time"] = now
+                self.db.put("incidents", incident, connection=connection)
             action_id = self.db.put("mitigation_actions", action, connection=connection)
             if request.mode == "block-client":
                 self.db.put("blocked_clients", {**action, "id": action_id}, connection=connection)
-        if request.incident_id and incident["status"] != "MITIGATING":
-            IncidentManager(self.db).transition(request.incident_id, "MITIGATING")
-        audit(
-            self.db,
-            "mitigation.enabled",
-            mode=request.mode,
-            reason=request.reason,
-            expires_at=now + request.ttl,
-            incident_id=request.incident_id,
-        )
+            audit(
+                self.db,
+                "mitigation.enabled",
+                connection=connection,
+                mode=request.mode,
+                reason=request.reason,
+                expires_at=now + request.ttl,
+                incident_id=request.incident_id,
+            )
         return action_id
 
     def status(self, *, now: float | None = None) -> list[dict]:

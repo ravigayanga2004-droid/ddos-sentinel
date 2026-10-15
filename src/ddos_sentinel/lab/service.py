@@ -60,6 +60,7 @@ class ServiceMiddleware:
         self.lab.telemetry.active += 1
         active = self.lab.telemetry.active
         status, size = 499, 0
+        mitigated = False
 
         async def observed_send(message: Message) -> None:
             nonlocal status
@@ -100,6 +101,7 @@ class ServiceMiddleware:
                     if not message.get("more_body", False):
                         break
             if self.lab.guard is not None and (code := self.lab.guard(client, path, size)):
+                mitigated = True
                 await reject(code, "temporary local mitigation")
                 return
 
@@ -121,6 +123,7 @@ class ServiceMiddleware:
                     active=active,
                     simulation_id=self.lab.simulation_id if valid else None,
                     new_connection=new_connection,
+                    mitigation=mitigated,
                 )
             )
 

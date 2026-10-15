@@ -2,6 +2,7 @@
 
 import json
 import logging
+import sqlite3
 from typing import Any
 
 from ddos_sentinel.core.database import Database
@@ -28,7 +29,9 @@ SAFE_FIELDS = frozenset(
 )
 
 
-def audit(db: Database, action: str, **metadata: Any) -> None:
+def audit(
+    db: Database, action: str, *, connection: sqlite3.Connection | None = None, **metadata: Any
+) -> None:
     record = {"action": action, "metadata": {k: v for k, v in metadata.items() if k in SAFE_FIELDS}}
-    db.put("audit_logs", record)
+    db.put("audit_logs", record, connection=connection)
     logger.info(json.dumps(record, allow_nan=False))

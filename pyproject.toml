@@ -16,6 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.3,<10", "pytest-asyncio>=0.25,<2", "ruff>=0.11,<1", "mypy>=1.15,<2"]
+ui = ["playwright>=1.50,<2"]
 
 [project.scripts]
 ddossentinel = "ddos_sentinel.cli:main"
@@ -37,6 +38,9 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["typer.Option"]
 
 [tool.mypy]
 python_version = "3.11"

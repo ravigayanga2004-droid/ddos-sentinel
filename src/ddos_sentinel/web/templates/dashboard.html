@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="csrf-token" content="{{ csrf }}"><meta name="color-scheme" content="dark">
+<title>DDoS Sentinel · Local defense lab</title><link rel="stylesheet" href="/static/dashboard.css">
+<script src="/static/dashboard.js" defer></script></head>
+<body>
+<aside class="rail"><a class="brand" href="/" aria-label="DDoS Sentinel home">S<span>ENTINEL</span></a>
+<div class="rail-label">WORKSPACE</div><nav><a class="selected" href="#overview">◈ &nbsp; Overview</a>
+<a href="#traffic">↗ &nbsp; Traffic analysis</a><a href="#response">◇ &nbsp; Incident response</a>
+<a href="#lab">⌘ &nbsp; Simulation lab</a><a href="#reports">▤ &nbsp; Reports</a>
+<a href="/safety">⊙ &nbsp; Safety model</a></nav>
+<div class="rail-footer"><span class="dot"></span> LOCAL ENVIRONMENT<br><small>127.0.0.1 · Synthetic traffic only</small></div></aside>
+<main id="overview"><header><div><span class="eyebrow">DEFENSIVE NETWORK LABORATORY</span>
+<h1>Security overview<span class="accent">.</span></h1><p>{{ lab_name }} <span class="separator">/</span> An observable, controlled environment.</p></div>
+<div class="live"><span class="dot"></span><span id="connection">Connecting</span><small id="clock"></small></div></header>
+<div class="notice"><strong>LOCAL SCOPE</strong> Application-owned services only. Experiments require explicit authorization.
+<a href="/safety">View safety controls ↗</a></div>
+<div id="message" role="status" aria-live="polite"></div>
+<section class="stats" aria-label="Current measurements">
+<article class="stat"><span>REQUEST RATE</span><strong id="rps">0<span> req/s</span></strong><small id="baseline">Baseline not learned</small></article>
+<article class="stat"><span>ACTIVE CONNECTIONS</span><strong id="active">0</strong><small id="completed">0 completed requests</small></article>
+<article class="stat"><span>P95 LATENCY</span><strong id="latency">0<span> ms</span></strong><small>Rolling one-second observation</small></article>
+<article class="stat"><span>OPEN INCIDENTS</span><strong id="incident-count">0</strong><small id="error-rate">0% service error rate</small></article>
+</section>
+<section class="grid" id="traffic"><article class="panel timeline"><div class="panel-head"><div><span class="eyebrow">TRAFFIC INTELLIGENCE</span><h2>Request timeline</h2></div><span class="tag">OBSERVED RPS</span></div>
+<div class="chart-wrap"><svg viewBox="0 0 760 180" role="img" aria-label="Observed request-rate timeline">
+<path class="gridline" d="M0 20H760M0 65H760M0 110H760M0 155H760"></path>
+<polyline id="chart" points="0,155 760,155"></polyline></svg></div><div class="chart-caption"><span>Most recent retained observation windows</span><span id="chart-max">Peak 0 req/s</span></div>
+<div class="target-strip"><span class="dot"></span><strong id="target">Starting owned service…</strong><small id="lab-state">TEMPORARY SERVICE</small></div></article>
+<article class="panel"><div class="panel-head"><div><span class="eyebrow">RESPONSE POSTURE</span><h2>Local controls</h2></div><span class="tag mint" id="control-state">READY</span></div>
+<p>Short-lived middleware controls. Each action has a reason and expiry.</p><div id="mitigations" class="control-list"><p class="empty">No active mitigations.</p></div>
+<form id="mitigation-form" class="compact-form"><label>Control<select id="mitigation-mode"><option value="global-throttle">Global throttle · 5 req/s</option><option value="client-rate-limit">Per-client limit · 5 req/s</option><option value="circuit-breaker">Circuit breaker · 503</option><option value="cooldown">Cooldown · 429</option></select></label>
+<label>Reason<input id="mitigation-reason" minlength="3" maxlength="200" required placeholder="Why this control is needed"></label>
+<div class="button-row"><button class="secondary" type="submit">Enable for 30s</button><button class="ghost" id="reset-mitigation" type="button">Reset controls</button></div></form></article></section>
+<section class="panel" id="response"><div class="panel-head"><div><span class="eyebrow">ANALYST WORKSPACE</span><h2>Detection alerts &amp; incidents</h2></div><span class="muted">Evidence, context, uncertainty</span></div>
+<div class="table-scroll"><table><thead><tr><th>SEVERITY</th><th>DETECTION RULE</th><th>OBSERVED / THRESHOLD</th><th>CONTEXT</th></tr></thead><tbody id="detections"><tr><td colspan="4" class="empty">No findings yet. Learn a baseline and run a bounded scenario.</td></tr></tbody></table></div>
+<div id="incidents" class="incident-list"></div></section>
+<section class="grid lower"><article class="panel" id="lab"><div class="panel-head"><div><span class="eyebrow">CONTROLLED EXPERIMENTS</span><h2>Simulation lab</h2></div><span class="tag">BOUNDED HTTP</span></div>
+<form id="simulation-form"><label>Built-in scenario<select id="scenario">{% for scenario in scenarios %}<option value="{{ scenario }}">{{ scenario }}</option>{% endfor %}</select></label>
+<div class="form-grid"><label>Duration · seconds<input id="duration" type="number" min="0.1" step="0.1" max="{{ limits.max_duration_seconds }}" value="5" required></label>
+<label>Rate · req/s<input id="rate" type="number" min="1" max="{{ limits.max_requests_per_second }}" value="10" required></label>
+<label>Synthetic clients<input id="clients" type="number" min="1" max="{{ limits.max_clients }}" value="5" required></label></div>
+<label class="check"><input id="dry-run" type="checkbox">Dry run · validate and record without requests</label>
+<label class="check authorization"><input id="authorization" type="checkbox" required>I authorize this single experiment on the application-owned loopback service.</label>
+<div class="button-row"><button type="submit" id="run">Start experiment ↗</button><button type="button" class="ghost" id="cancel">Stop</button><button type="button" class="secondary" id="learn">Learn normal baseline</button></div>
+<p class="fine-print">Hard ceilings: {{ limits.max_duration_seconds }}s · {{ limits.max_requests_per_second }} req/s · {{ limits.max_clients }} clients · {{ limits.max_request_body_bytes }} body bytes. Requests stop at the deadline; bounded in-flight service work is then drained.</p></form></article>
+<article class="panel" id="reports"><div class="panel-head"><div><span class="eyebrow">MEASUREMENT &amp; EVIDENCE</span><h2>Experiment results</h2></div></div>
+<div id="evaluation" class="metric-list"></div><div class="report-links"><a href="/reports/json">JSON ↗</a><a href="/reports/markdown">Markdown ↗</a><a href="/reports/html">HTML ↗</a></div>
+<p class="fine-print">Reports include retained evidence, timing, baseline comparison, recommendations and limitations. Missing measurements remain unobserved.</p>
+<h3>Recent simulations</h3><div id="history" class="history"><p class="empty">No simulations recorded.</p></div></article></section>
+<footer>DDoS Sentinel <span>LOCAL-FIRST · EXPLAINABLE · REVERSIBLE</span><small>For authorized security training. No production protection claims.</small></footer>
+</main></body></html>

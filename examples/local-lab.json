@@ -1,0 +1,31 @@
+{
+  "lab_name": "local-training-lab",
+  "target": {
+    "host": "127.0.0.1",
+    "port": 0,
+    "protocol": "http",
+    "service_type": "temporary_test_service"
+  },
+  "safety": {
+    "localhost_only": true,
+    "allow_private_networks": false,
+    "allow_public_targets": false,
+    "synthetic_traffic_only": true,
+    "require_explicit_authorization": true,
+    "dry_run": false
+  },
+  "limits": {
+    "max_duration_seconds": 60.0,
+    "max_clients": 100,
+    "max_requests_per_second": 200,
+    "max_request_body_bytes": 65536
+  },
+  "detection": {
+    "baseline_window_seconds": 60,
+    "alert_threshold": "medium",
+    "window_seconds": 1.0
+  },
+  "artificial_latency_ms": 250,
+  "retention_days": 7,
+  "max_telemetry_rows": 50000
+}

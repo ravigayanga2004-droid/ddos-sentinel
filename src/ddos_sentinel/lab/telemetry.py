@@ -34,7 +34,10 @@ def summarize(samples: Sequence[TrafficSample], seconds: float, active: int = 0)
         mean_size=statistics.mean(sample.size for sample in samples) if count else 0,
         health=1 - errors / count if count else 1,
         throttled=sum(sample.status == 429 for sample in samples),
-        rejected=sum(sample.status in {403, 413, 503} for sample in samples),
+        rejected=sum(
+            sample.status in {403, 413} or (sample.status == 503 and sample.mitigation)
+            for sample in samples
+        ),
         churn=sum(sample.new_connection for sample in samples) / seconds,
     )
 
