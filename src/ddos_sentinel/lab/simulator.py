@@ -80,6 +80,7 @@ async def _run(
         return record
     tasks: set[asyncio.Task[None]] = set()
     start = time.monotonic()
+    cpu_start = time.process_time()
     next_observation = start + lab.config.detection.window_seconds
     lab.simulation_id = simulation_id
     headers = {"X-Sentinel-Lab": lab.authorization.token}
@@ -159,6 +160,8 @@ async def _run(
             await asyncio.sleep(0.01)
         record["end_time"] = time.time()
         record["elapsed_seconds"] = time.monotonic() - start
+        record["process_cpu_seconds"] = time.process_time() - cpu_start
+        record["process_memory_bytes"] = None
         lab.simulation_id = None
         samples = [
             sample for sample in lab.telemetry.samples if sample.simulation_id == simulation_id
